@@ -6,26 +6,28 @@ import os
 homedir = os.environ['HOME']
 src_path = os.path.dirname(os.path.realpath(__file__))+'/'
 #src_path = homedir+'/espresso/src/'
-data_path = homedir+'/.espresso/'
-error_path = data_path+'error_handling/'
+data_path = os.path.join(homedir,'.espresso')
+error_path = os.path.join(data_path+'error_handling')
 #repl_path = data_path+'repl-tmpfiles/'
 #pipe_dir = data_path+'pipes/'
-pwd_file = data_path+'.{}.PWD'.format(os.getpid())
+pwd_file = os.path.join(data_path,'.{}.PWD'.format(os.getpid()))
+
+
+
+
+
+
+
+
 
 # initialize dirs used by espresso
 def init_dirs():
-    dirs = [src_path,data_path,error_path]
+    dirs = [data_path,error_path]
     for d in dirs:
         if not os.path.isdir(d):
             blue('created:'+d)
             os.makedirs(d)
-
-# not used right now
-def clear_repl_tmpfiles():
-    import shutil
-    shutil.rmtree(repl_path)
-    os.makedirs(repl_path)
-    del shutil
+init_dirs()
 
 def die(s):
     raise VerbatimExc(mk_red("Error:"+str(s)))
@@ -381,6 +383,5 @@ if __name__ == "__main__":
     fmtd = format_exception(exception,relevant_path_piece,given_text=True,verbose=verbose)
     print(fmtd)
 
-init_dirs()
 
 

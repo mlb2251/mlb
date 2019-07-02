@@ -381,5 +381,6 @@ if __name__ == "__main__":
     fmtd = format_exception(exception,relevant_path_piece,given_text=True,verbose=verbose)
     print(fmtd)
 
+init_dirs()
 
 

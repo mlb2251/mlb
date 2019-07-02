@@ -20,6 +20,48 @@ pwd_file = os.path.join(data_path,'.{}.PWD'.format(os.getpid()))
 
 
 
+
+import select,sys
+breaker_inputs = []
+
+def breaker(keyword='b'):
+    if len(breaker_inputs) > 0:
+        if keyword in breaker_inputs:
+            breaker_inputs.remove(keyword)
+            breakpoint()
+    while select.select([sys.stdin,],[],[],0.0)[0]:
+        line = input().strip()
+        if line.startswith(keyword):
+            breakpoint()
+        else:
+            breaker_inputs.append(line)
+
+from bdb import BdbQuit
+from contextlib import contextmanager
+from pdb import post_mortem
+import traceback
+
+@contextmanager
+def debug(do_debug=True):
+    try:
+        yield None
+    except BdbQuit:
+        raise
+    except KeyboardInterrupt:
+        raise
+    except Exception as e:
+        if do_debug:
+            print(''.join(traceback.format_exception(e.__class__,e,e.__traceback__)))
+            print(format_exception(e,''))
+            post_mortem()
+            sys.exit(1)
+        else:
+            raise e
+    finally:
+        pass
+
+
+
 # initialize dirs used by espresso
 def init_dirs():
     dirs = [data_path,error_path]

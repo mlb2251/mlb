@@ -135,7 +135,6 @@ def debug(do_debug=True):
             print("hi")
             print(''.join(tb.format_exception(e.__class__,e,e.__traceback__)))
             print(format_exception(e,''))
-            breakpoint()
             post_mortem()
             sys.exit(1)
         else:

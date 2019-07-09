@@ -12,13 +12,98 @@ error_path = os.path.join(data_path+'error_handling/')
 #pipe_dir = data_path+'pipes/'
 pwd_file = os.path.join(data_path,'.{}.PWD'.format(os.getpid()))
 
+class Time():
+    def __init__(self,name,parent,cumulative=False):
+        self.name = name
+        self.cumulative = cumulative
+        self.count = 0
+        self._start = None
+        self.elapsed = 0
+        self.avg = None
+        self.parent=parent
+    def start(self):
+        self._start = time.time()
+    def stop(self):
+        self.count += 1
+        dt = time.time() - self._start
+        self.elapsed = (self.elapsed + dt) if self.cumulative else dt
+        if self.cumulative:
+            self.avg = self.elapsed/self.count
+    def percent(self):
+        assert self.name != 'total' and 'total' in self.parent.timers and self.parent.timers['total'].elapsed != 0
+        return self.elapsed/self.parent.timers['total'].elapsed*100
+    def __repr__(self):
+        if self.name != 'total' and 'total' in self.parent.timers and self.parent.timers['total'].elapsed != 0:
+            percent = self.percent()
+            return f'{self.name+":":<{self.parent.longest_name+1}} tot:{str(self.elapsed)+",":<23} avg:{self.avg}, {percent:.3f}%'
+        return f'{self.name+":":<{self.parent.longest_name+1}} tot:{str(self.elapsed)+",":<23} avg:{self.avg}'
+
+
+class Timer:
+    def __init__(self,cumulative=True):
+        self.timers = {}
+        self.most_recent=None
+        self.cumulative = cumulative
+        self.longest_name = 5
+    def start(self,name='timer',cumulative=None):
+        if len(name) > self.longest_name:
+            self.longest_name = len(name)
+        if cumulative is None:
+            cumulative=self.cumulative
+        self.most_recent = name
+        if name not in self.timers:
+            self.timers[name] = Time(name,self,cumulative)
+        if not hasattr(self,name):
+            setattr(self,name,self.timers[name])
+        self.timers[name].start()
+        return self
+    def clear(self):
+        for name in self.timers:
+            if isinstance(getattr(self,name),Time):
+                delattr(self,name)
+        self.timers = {}
+    def stop(self,name=None):
+        """
+        Convenience: if you dont provide `name` it uses the last one that `start` was called with. stop() also returns the elapsed time and also does a setattr to set the field with the name `name` to the elapsed time.
+        """
+        if name is None:
+            name = self.most_recent
+        assert name in self.timers, f"You need to .start() your timer '{name}'"
+        self.timers[name].stop()
+        return self.timers[name]
+    def print(self,name=None):
+        if name is None:
+            name = self.most_recent
+        print(self.stop(name))
+    def __repr__(self):
+        body = []
+        for timer in self.timers.values():
+            body.append(repr(timer))
+        return 'Timers:\n'+',\n'.join(body)
+
+class ProgressBar:
+    def __init__(self,num_steps,num_dots=10):
+        self.num_steps = num_steps
+        self.num_dots = num_dots
+        self.curr_step = 0
+        self.dots_printed = 0
+
+    def step(self):
+        expected_dots = ceil(self.curr_step/self.num_steps*self.num_dots)
+        dots_to_print = expected_dots - self.dots_printed
+        if dots_to_print > 0:
+            print('.'*dots_to_print, end='', flush=True)
+        self.dots_printed = expected_dots
+        self.curr_step += 1
+        if self.curr_step == self.num_steps:
+            print('!\n', end='', flush=True)
 
 
 
 import select,sys
 breaker_inputs = []
 
-def breaker(keyword='b'):
+def freezer(keyword='b'):
     if len(breaker_inputs) > 0:
         if keyword in breaker_inputs:
             breaker_inputs.remove(keyword)

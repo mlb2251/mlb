@@ -2,9 +2,14 @@
 from importlib import reload
 
 import subprocess as sp
-import os
+import os,sys
+import select
+from bdb import BdbQuit
+from contextlib import contextmanager
+from pdb import post_mortem,set_trace
+import traceback as tb
 import time
-import math
+from math import ceil
 homedir = os.environ['HOME']
 src_path = os.path.dirname(os.path.realpath(__file__))+'/'
 #src_path = homedir+'/espresso/src/'
@@ -105,25 +110,20 @@ class ProgressBar:
 
 
 
-import select,sys
 breaker_inputs = []
 
 def freezer(keyword='b'):
     if len(breaker_inputs) > 0:
         if keyword in breaker_inputs:
             breaker_inputs.remove(keyword)
-            breakpoint()
+            set_trace()
     while select.select([sys.stdin,],[],[],0.0)[0]:
         line = input().strip()
         if line.strip() == keyword:
-            breakpoint()
+            set_trace()
         else:
             breaker_inputs.append(line.strip())
 
-from bdb import BdbQuit
-from contextlib import contextmanager
-from pdb import post_mortem
-import traceback
 
 @contextmanager
 def debug(do_debug=True):
@@ -135,7 +135,8 @@ def debug(do_debug=True):
         raise
     except Exception as e:
         if do_debug:
-            print(''.join(traceback.format_exception(e.__class__,e,e.__traceback__)))
+            print("hi")
+            print(''.join(tb.format_exception(e.__class__,e,e.__traceback__)))
             print(format_exception(e,''))
             post_mortem()
             sys.exit(1)
@@ -155,10 +156,10 @@ def init_dirs():
             os.makedirs(d)
 
 def die(s):
-    raise VerbatimExc(mk_red("Error:"+str(s)))
+    raise Exception(mk_red(f"Error:{s}"))
 
 def warn(s):
-    print(mk_yellow("WARN:"+s))
+    yellow(f"WARN:{s}")
 
 # cause nobody likes ugly paths
 def pretty_path(p):
@@ -193,7 +194,6 @@ def reload_modules(mods_dict,verbose=False):
 class PrettifyErr(Exception): pass
 class VerbatimExc(Exception): pass
 
-import traceback as tb
 def exception_str(e):
     return ''.join(tb.format_exception(e.__class__,e,e.__traceback__))
 

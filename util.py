@@ -3,6 +3,8 @@ from importlib import reload
 
 import subprocess as sp
 import os
+import time
+import math
 homedir = os.environ['HOME']
 src_path = os.path.dirname(os.path.realpath(__file__))+'/'
 #src_path = homedir+'/espresso/src/'
@@ -30,7 +32,10 @@ class Time():
         if self.cumulative:
             self.avg = self.elapsed/self.count
     def percent(self):
-        assert self.name != 'total' and 'total' in self.parent.timers and self.parent.timers['total'].elapsed != 0
+        assert 'total' in self.parent.timers
+        if self.parent.timers['total'].elapsed == 0:
+            assert self.elapsed == 0
+            return 0
         return self.elapsed/self.parent.timers['total'].elapsed*100
     def __repr__(self):
         if self.name != 'total' and 'total' in self.parent.timers and self.parent.timers['total'].elapsed != 0:
@@ -89,7 +94,7 @@ class ProgressBar:
         self.dots_printed = 0
 
     def step(self):
-        expected_dots = ceil(self.curr_step/self.num_steps*self.num_dots)
+        expected_dots = math.ceil(self.curr_step/self.num_steps*self.num_dots)
         dots_to_print = expected_dots - self.dots_printed
         if dots_to_print > 0:
             print('.'*dots_to_print, end='', flush=True)
@@ -110,10 +115,10 @@ def freezer(keyword='b'):
             breakpoint()
     while select.select([sys.stdin,],[],[],0.0)[0]:
         line = input().strip()
-        if line.startswith(keyword):
+        if line.strip() == keyword:
             breakpoint()
         else:
-            breaker_inputs.append(line)
+            breaker_inputs.append(line.strip())
 
 from bdb import BdbQuit
 from contextlib import contextmanager

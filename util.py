@@ -99,7 +99,7 @@ class ProgressBar:
         self.dots_printed = 0
 
     def step(self):
-        expected_dots = math.ceil(self.curr_step/self.num_steps*self.num_dots)
+        expected_dots = ceil(self.curr_step/self.num_steps*self.num_dots)
         dots_to_print = expected_dots - self.dots_printed
         if dots_to_print > 0:
             print('.'*dots_to_print, end='', flush=True)
@@ -110,28 +110,30 @@ class ProgressBar:
 
 
 
-breaker_inputs = []
+freezer_inputs = []
 
 def freezer(keyword='b'):
-    if len(breaker_inputs) > 0:
-        if keyword in breaker_inputs:
-            breaker_inputs.remove(keyword)
+    if len(freezer_inputs) > 0:
+        if keyword in freezer_inputs:
+            freezer_inputs.remove(keyword)
             set_trace()
     while select.select([sys.stdin,],[],[],0.0)[0]:
         line = input().strip()
         if line.strip() == keyword:
             set_trace()
         else:
-            breaker_inputs.append(line.strip())
+            freezer_inputs.append(line.strip())
 
 
 @contextmanager
-def debug(do_debug=True):
+def debug(do_debug=True,ctrlc_quit=False):
     try:
         yield None
     except BdbQuit:
         raise
     except KeyboardInterrupt:
+        if ctrlc_quit:
+            sys.exit(1)
         raise
     except Exception as e:
         if do_debug:

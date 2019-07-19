@@ -118,7 +118,10 @@ def freezer(keyword='b'):
             freezer_inputs.remove(keyword)
             set_trace()
     while select.select([sys.stdin,],[],[],0.0)[0]:
-        line = input().strip()
+        try:
+            line = input().strip()
+        except EOFError:
+            return
         if line.strip() == keyword:
             set_trace()
         else:
@@ -137,7 +140,6 @@ def debug(do_debug=True,ctrlc_quit=False):
         raise
     except Exception as e:
         if do_debug:
-            print("hi")
             print(''.join(tb.format_exception(e.__class__,e,e.__traceback__)))
             print(format_exception(e,''))
             post_mortem()

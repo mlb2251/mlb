@@ -1,6 +1,7 @@
 # UTIL
 from importlib import reload
 
+import inspect
 import subprocess as sp
 import os,sys
 import select
@@ -90,6 +91,52 @@ class Timer:
         for timer in self.timers.values():
             body.append(repr(timer))
         return 'Timers:\n'+',\n'.join(body)
+
+
+
+def clock(fn):
+    lines,def_line = inspect.getsourcelines(fn)
+    lines = lines[1:] # strip away the decorator line
+    def_line += 2
+    assert lines[0].strip().startswith('def')
+
+    out = []
+    timer_obj = f'_timer'
+    out.append(lines[0].replace(fn.__name__,'_timed_fn').lstrip()) # `def` header. lstrip to fix indent
+
+    first = True
+
+    for lineno,line in enumerate(lines[1:]): # fn body
+        lineno += def_line
+        nocomment = line[:line.find('#')].strip()
+        if nocomment == '' or nocomment.endswith(":"):
+            out.append(line)
+            continue
+        indent = line[:len(line) - len(line.lstrip())]
+
+        out.append(f'{indent}{timer_obj}.start("{lineno}")')
+        out.append(line)
+        out.append(f'{indent}{timer_obj}.stop("{lineno}")')
+
+
+    fn_text = '\n'.join(out)
+
+    global _timer
+    _timer = Timer()
+    exec(fn_text) # define the function
+    x = locals()['_timed_fn']
+
+    def wrapper(*args, **kwargs):
+        _timer.start('total')
+        ret = x(*args,**kwargs)
+        _timer.stop('total')
+        return ret
+
+    wrapper.dt = _timer
+    return wrapper
+
+
+
 
 class ProgressBar:
     def __init__(self,num_steps,num_dots=10):

@@ -93,12 +93,37 @@ class Timer:
         return 'Timers:\n'+',\n'.join(body)
 
 
+_timer = Timer()
+
+import ast
 
 def clock(fn):
+
+    tree = ast.parse(inspect.getsource(fn))
+    fndef = tree.body[0]
+    fndef.name = '_timed_fn'
+    fndef.decorator_list=[]
+    tglobal = ast.parse('mlb._timer = Timer()').body[0] # Expr
+    tstart = ast.parse('mlb._timer.start("4")').body[0] # Expr
+    tstop = ast.parse('mlb._timer.stop("4")').body[0] # Expr
+    body = [tglobal]
+    for stmt in fndef.body:
+        body.extend([tstart,stmt,tstop])
+    fndef.body = body
+    ast.fix_missing_locations(tree)
+
+    code = compile(tree,'<string>','exec')
+    exec(code)
+    return locals()['_timed_fn']
+
+    breakpoint()
+
+
     lines,def_line = inspect.getsourcelines(fn)
     lines = lines[1:] # strip away the decorator line
     def_line += 2
     assert lines[0].strip().startswith('def')
+
 
     out = []
     timer_obj = f'_timer'
@@ -123,7 +148,11 @@ def clock(fn):
 
     global _timer
     _timer = Timer()
-    exec(fn_text) # define the function
+    try:
+        exec(fn_text) # define the function
+    except:
+        print(fn_text)
+        raise
     x = locals()['_timed_fn']
 
     def wrapper(*args, **kwargs):

@@ -20,6 +20,15 @@ error_path = os.path.join(data_path+'error_handling/')
 #pipe_dir = data_path+'pipes/'
 pwd_file = os.path.join(data_path,'.{}.PWD'.format(os.getpid()))
 
+
+# unique timers by name
+_timers = {}
+def get_timer(name,**kwargs):
+    if name not in _timers:
+        _timers[name] = Timer(**kwargs)
+    return _timers[name]
+
+
 class Time():
     def __init__(self,name,parent,cumulative=False):
         self.name = name
@@ -216,16 +225,13 @@ def debug(do_debug=True,ctrlc_quit=False):
             sys.exit(1)
         raise
     except Exception as e:
-        if do_debug:
-            print(datetime.datetime.now())
-            print(''.join(tb.format_exception(e.__class__,e,e.__traceback__)))
-            print(format_exception(e,''))
-            post_mortem()
-            sys.exit(1)
-        else:
+        if not do_debug:
             raise e
-    finally:
-        pass
+        print(datetime.datetime.now())
+        print(''.join(tb.format_exception(e.__class__,e,e.__traceback__)))
+        print(format_exception(e,''))
+        post_mortem()
+        sys.exit(1)
 
 
 

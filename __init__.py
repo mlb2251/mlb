@@ -20,6 +20,16 @@ error_path = os.path.join(data_path+'error_handling/')
 #pipe_dir = data_path+'pipes/'
 pwd_file = os.path.join(data_path,'.{}.PWD'.format(os.getpid()))
 
+from itertools import zip_longest
+
+# a version of zip that forces things to be equal length
+def zip(*iterables):
+    sentinel = object()
+    for combo in zip_longest(*iterables, fillvalue=sentinel):
+        if any([sentinel is x for x in combo]):
+            raise ValueError('Iterables have different lengths')
+        yield combo
+
 
 # unique timers by name
 _timers = {}
@@ -194,10 +204,11 @@ class ProgressBar:
             print('!\n', end='', flush=True)
 
 
+from pdb import set_trace
+import select
 
 freezer_inputs = []
-
-def freezer(keyword='b'):
+def freezer(keyword='break'):
     if len(freezer_inputs) > 0:
         if keyword in freezer_inputs:
             freezer_inputs.remove(keyword)
@@ -212,10 +223,12 @@ def freezer(keyword='b'):
         else:
             freezer_inputs.append(line.strip())
 
+from pdb import post_mortem
+import traceback as tb
 import datetime
 
 @contextmanager
-def debug(do_debug=True,ctrlc_quit=False):
+def debug(do_debug=True,ctrlc_quit=True):
     try:
         yield None
     except BdbQuit:

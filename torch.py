@@ -5,7 +5,6 @@ import torch.nn.functional as F
 #def bp(*args):
 #    print("AssertionError:",*args)
 #    breakpoint()
-### VERY USEFUL: assert False, bp("message")
 
 
 class Trial:

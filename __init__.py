@@ -223,6 +223,23 @@ def freezer(keyword='break'):
         else:
             freezer_inputs.append(line.strip())
 
+def callback(keyword,fn):
+    assert callable(fn)
+    if len(freezer_inputs) > 0:
+        if keyword in freezer_inputs:
+            freezer_inputs.remove(keyword)
+            fn()
+    while select.select([sys.stdin,],[],[],0.0)[0]:
+        try:
+            line = input().strip()
+        except EOFError:
+            return
+        if line.strip() == keyword:
+            fn()
+        else:
+            freezer_inputs.append(line.strip())
+
+
 from pdb import post_mortem
 import traceback as tb
 import datetime

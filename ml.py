@@ -1,11 +1,174 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
+import datetime
+import time
 
-#def bp(*args):
-#    print("AssertionError:",*args)
-#    breakpoint()
-### VERY USEFUL: assert False, bp("message")
+from visdom import Visdom
+
+class VisPlot:
+    """Plots to Visdom"""
+    def __init__(self, env='main'):
+        try:
+            self.vis = Visdom() # global
+        except ConnectionError as e:
+            mlb.red("Visdom Server not running, please launch it with `visdom` in the terminal")
+            exit(1)
+        self.env = env
+        print(f"View visdom results on env '{env}'")
+        self.plots = {} # name -> visdom window str
+        #if not self.vis.win_exists('last_updated'):
+            #self.vis.win_exists
+    def plot(self, title, series, x, y, setup=None, xlabel='Epochs', ylabel=None):
+        """
+        title = 'loss' etc
+        series = 'train' etc
+        """
+        hr_min = datetime.datetime.now().strftime("%I:%M")
+        timestamp = datetime.datetime.now().strftime("%A, %B %d, %Y %I:%M%p")
+        self.vis.text(f'<b>LAST UPDATED</b><br>{time}',env=self.env,win='last_updated')
+
+        #if setup.expname != 'NoName':
+        #    title += f" ({setup.expname})"
+        #if setup.has_suggestion:
+        #    title += f" ({setup.sugg_id})"
+        #title += f" (Phase {setup.phaser.idx}) "
+
+        #if setup.config.sigopt:
+        #    display_title = f"{display_title}:{setup.sugg_id}"
+        #if setup.config.mode is not None:
+        #    display_title += f" ({setup.config.mode})"
+
+        display_title = f"{title} ({hr_min})"
+
+        if title in self.plots: # update existing plot
+            self.vis.line(
+                    X=np.array([x]),
+                    Y=np.array([y]),
+                    env=self.env,
+                    win=self.plots[title],
+                    name=series,
+                    update = 'append'
+                    )
+        else: # new plot
+            self.plots[title] = self.vis.line(
+                    X=np.array([x,x]),
+                    Y=np.array([y,y]),
+                    env=self.env,
+                    opts={
+                        'legend':[series],
+                        'title':display_title,
+                        'xlabel':xlabel,
+                        'ylabel':ylabel,
+                    })
+        #mlb.gray("[plotted to visdom]")
+
+    def heat(input,title=""):
+        if isinstance(input,(list,tuple)):
+            return [heat(x,title=title+f'[{i}]') for i,x in enumerate(input)]
+        if isinstance(input,dict):
+            return {k:heat(v,title=title+k) for k,v in input.items()}
+        if isinstance(input,nn.Module):
+            for name,tens in input.named_parameters():
+                heat(tens,title=title+' '+name)
+            return
+        elif torch.is_tensor(input):
+            title += ' '+datetime.datetime.now().strftime("%I:%M%p")
+            if input.dim() == 1:
+                input = input.unsqueeze(1)
+            if input.dim() != 2:
+                print(f"Can't display tensor {title} of dim {input.dim()}")
+                return
+            self.vis.heatmap(input,env='heat',opts=dict(title=title))
+    def gradheat(input,title=""):
+        if isinstance(input,(list,tuple)):
+            return [gradheat(x,title=title+f'[{i}]') for i,x in enumerate(input)]
+        if isinstance(input,dict):
+            return {k:gradheat(v,title=title+k) for k,v in input.items()}
+        if isinstance(input,nn.Module):
+            for name,tens in input.named_parameters():
+                gradheat(tens,title=title+' '+name)
+            return
+        elif torch.is_tensor(input):
+            if not input.requires_grad:
+                return
+            input = input.grad
+            title += ' '+datetime.datetime.now().strftime(" ∆∆∆ %I:%M%p ")
+            if input.dim() == 1:
+                input = input.unsqueeze(1)
+            if input.dim() != 2:
+                print(f"Can't display tensor {title} of dim {tens.dim()}")
+                return
+            self.vis.heatmap(input,env='heat',opts=dict(title=title))
+
+
+
+
+class Input:
+    def __init__(self,*args,**kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+class Module(nn.Module):
+    def __init__(self,input):
+        super().__init__()
+        assert isinstance(input,Input)
+        self.nn = NNProxy()
+
+
+class NNProxy:
+    def __getattr__(self,key):
+        val = getattr(torch.nn,key)
+        assert isinstance(val,nn.Module)
+        def fn(*args,**kwargs):
+            return val(*args,in_features=self.trial.shape,**kwargs)
+
+class Test(Module):
+    def __init__(self,input):
+
+        def encode(x):
+            with self.label('conv_encode'):
+                x.nn.Conv1d(s.o1,s.k1,stride=s.stride)
+                x.nn.ReLU(True)
+                x.nn.Conv1d(s.o2,s.k2,stride=s.stride)
+                x.nn.ReLU(True)
+                x.nn.Conv1d(s.o3,s.k3,stride=s.stride)
+                x.nn.ReLU(True)
+            x.view(-1).shapes('unflat','flat') # these labels apply to `self` globally
+            x.nn.Linear(s.e2_o)
+            x.F.relu()
+
+        #with x.activation(x.F.relu)
+
+        def decode(x):
+            x.Linear(s.e2_o).relu()
+            x.Linear('flat').relu()
+            x.view('unflat')
+            x.deconv('conv_encode')
+            x.shape('s').view(-1)
+            def code():
+                print("hi")
+            x(code)
+            x.Linear(factor=1) # can do factor=2 for input->output double size etc
+            x.view('s')
+            x.transpose(1,2)
+            x.F.softmax(dim=2)
+            x.transpose(1,2)
+
+        def sample(mu, logvar):
+            with self.constant(): # hold everything constant
+                std = self.torch.exp(.5*logvar)
+                epsilon = self.torch.randn_like(std)*.01
+                return epsilon.mul(std).add_(mu)
+
+        def forward(x):
+            mu,logvar = encode(inputs[0])
+            sample = sample(mu,logvar)
+            decoded = decode(sample)
+            return decoded, mu, logvar
+
+        self.build(input[0])
 
 
 class Trial:

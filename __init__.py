@@ -1,6 +1,7 @@
 # UTIL
 from importlib import reload
 
+import numpy as np
 import inspect
 import subprocess as sp
 import os,sys
@@ -136,6 +137,62 @@ def clock(fn):
     return wrapper
 
 
+class VisdomPlotter:
+    """Plots to Visdom"""
+    def __init__(self, env='main'):
+        global vis
+        self.env = env
+        print(f"View visdom results on env {env}")
+        self.plots = {} # name -> visdom window str
+        self.vis = vis # not picklable
+        if not self.vis.win_exists('last_updated'):
+            self.vis.win_exists
+    def plot(self, title, series, x, y, setup, xlabel='Epochs', ylabel=None):
+        """
+        title = 'loss' etc
+        series = 'train' etc
+        """
+        hr_min = datetime.datetime.now().strftime("%I:%M")
+        time = datetime.datetime.now().strftime("%A, %B %d, %Y %I:%M%p")
+        self.vis.text(f'<b>LAST UPDATED</b><br>{time}',env=self.env,win='last_updated')
+
+        if setup.expname != 'NoName':
+            title += f" ({setup.expname})"
+        if setup.has_suggestion:
+            title += f" ({setup.sugg_id})"
+        title += f" (Phase {setup.phaser.idx}) "
+
+        display_title = title
+        if setup.config.sigopt:
+            display_title = f"{display_title}:{setup.sugg_id}"
+        if setup.config.mode is not None:
+            display_title += f" ({setup.config.mode})"
+        display_title += f" ({hr_min})"
+
+        if title in self.plots: # update existing plot
+            self.vis.line(
+                    X=np.array([x]),
+                    Y=np.array([y]),
+                    env=self.env,
+                    win=self.plots[title],
+                    name=series,
+                    update = 'append'
+                    )
+        else: # new plot
+            self.plots[title] = self.vis.line(
+                    X=np.array([x,x]),
+                    Y=np.array([y,y]),
+                    env=self.env,
+                    opts={
+                        'legend':[series],
+                        'title':display_title,
+                        'xlabel':xlabel,
+                        'ylabel':ylabel,
+                    })
+        #mlb.gray("[plotted to visdom]")
+
+
+
 
 
 class ProgressBar:
@@ -177,7 +234,7 @@ def freezer(keyword='b'):
 import datetime
 
 @contextmanager
-def debug(do_debug=True,ctrlc_quit=False):
+def debug(do_debug=True,ctrlc_quit=True):
     try:
         yield None
     except BdbQuit:
@@ -560,6 +617,7 @@ if __name__ == "__main__":
     exception = [line+'\n' for line in exception]
     fmtd = format_exception(exception,relevant_path_piece,given_text=True,verbose=verbose)
     print(fmtd)
+
 
 
 

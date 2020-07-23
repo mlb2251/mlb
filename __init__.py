@@ -21,6 +21,25 @@ error_path = os.path.join(data_path+'error_handling/')
 #pipe_dir = data_path+'pipes/'
 pwd_file = os.path.join(data_path,'.{}.PWD'.format(os.getpid()))
 
+from itertools import zip_longest
+
+# a version of zip that forces things to be equal length
+def zip(*iterables):
+    sentinel = object()
+    for combo in zip_longest(*iterables, fillvalue=sentinel):
+        if any([sentinel is x for x in combo]):
+            raise ValueError('Iterables have different lengths')
+        yield combo
+
+
+# unique timers by name
+_timers = {}
+def get_timer(name,**kwargs):
+    if name not in _timers:
+        _timers[name] = Timer(**kwargs)
+    return _timers[name]
+
+
 class Time():
     def __init__(self,name,parent,cumulative=False):
         self.name = name
@@ -94,12 +113,37 @@ class Timer:
         return 'Timers:\n'+',\n'.join(body)
 
 
+_timer = Timer()
+
+import ast
 
 def clock(fn):
+
+    tree = ast.parse(inspect.getsource(fn))
+    fndef = tree.body[0]
+    fndef.name = '_timed_fn'
+    fndef.decorator_list=[]
+    tglobal = ast.parse('mlb._timer = Timer()').body[0] # Expr
+    tstart = ast.parse('mlb._timer.start("4")').body[0] # Expr
+    tstop = ast.parse('mlb._timer.stop("4")').body[0] # Expr
+    body = [tglobal]
+    for stmt in fndef.body:
+        body.extend([tstart,stmt,tstop])
+    fndef.body = body
+    ast.fix_missing_locations(tree)
+
+    code = compile(tree,'<string>','exec')
+    exec(code)
+    return locals()['_timed_fn']
+
+    breakpoint()
+
+
     lines,def_line = inspect.getsourcelines(fn)
     lines = lines[1:] # strip away the decorator line
     def_line += 2
     assert lines[0].strip().startswith('def')
+
 
     out = []
     timer_obj = f'_timer'
@@ -124,7 +168,11 @@ def clock(fn):
 
     global _timer
     _timer = Timer()
-    exec(fn_text) # define the function
+    try:
+        exec(fn_text) # define the function
+    except:
+        print(fn_text)
+        raise
     x = locals()['_timed_fn']
 
     def wrapper(*args, **kwargs):
@@ -213,10 +261,11 @@ class ProgressBar:
             print('!\n', end='', flush=True)
 
 
+from pdb import set_trace
+import select
 
 freezer_inputs = []
-
-def freezer(keyword='b'):
+def freezer(keyword='break'):
     if len(freezer_inputs) > 0:
         if keyword in freezer_inputs:
             freezer_inputs.remove(keyword)
@@ -231,6 +280,25 @@ def freezer(keyword='b'):
         else:
             freezer_inputs.append(line.strip())
 
+def callback(keyword,fn):
+    assert callable(fn)
+    if len(freezer_inputs) > 0:
+        if keyword in freezer_inputs:
+            freezer_inputs.remove(keyword)
+            fn()
+    while select.select([sys.stdin,],[],[],0.0)[0]:
+        try:
+            line = input().strip()
+        except EOFError:
+            return
+        if line.strip() == keyword:
+            fn()
+        else:
+            freezer_inputs.append(line.strip())
+
+
+from pdb import post_mortem
+import traceback as tb
 import datetime
 
 @contextmanager
@@ -244,16 +312,13 @@ def debug(do_debug=True,ctrlc_quit=True):
             sys.exit(1)
         raise
     except Exception as e:
-        if do_debug:
-            print(datetime.datetime.now())
-            print(''.join(tb.format_exception(e.__class__,e,e.__traceback__)))
-            print(format_exception(e,''))
-            post_mortem()
-            sys.exit(1)
-        else:
+        if not do_debug:
             raise e
-    finally:
-        pass
+        print(datetime.datetime.now())
+        print(''.join(tb.format_exception(e.__class__,e,e.__traceback__)))
+        print(format_exception(e,''))
+        post_mortem()
+        sys.exit(1)
 
 
 

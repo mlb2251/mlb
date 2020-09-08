@@ -285,14 +285,14 @@ class ProgressBar:
             print('!\n', end='', flush=True)
 
 
-freezer_inputs = []
+callback_inputs = []
 
 
 def callback(keyword, fn):
     assert callable(fn)
-    if len(freezer_inputs) > 0:
-        if keyword in freezer_inputs:
-            freezer_inputs.remove(keyword)
+    if len(callback_inputs) > 0:
+        if keyword in callback_inputs:
+            callback_inputs.remove(keyword)
             return fn()
     while select.select([sys.stdin, ], [], [], 0.0)[0]:
         try:
@@ -302,12 +302,12 @@ def callback(keyword, fn):
         if line.strip() == keyword:
             return fn()
         else:
-            freezer_inputs.append(line.strip())
+            callback_inputs.append(line.strip())
 
 def freezer(keyword='pause'):
     return callback(keyword, set_trace)
     
-def predicate():
+def predicate(keyword):
     return callback(keyword, lambda:True)
 
 @contextmanager

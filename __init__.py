@@ -39,6 +39,14 @@ def zip(*iterables):
             raise ValueError('Iterables have different lengths')
         yield combo
 
+def get_verbose():
+    return 'MLB_VERBOSE' in os.environ and os.environ['MLB_VERBOSE'] == '1'
+
+def set_verbose():
+    os.environ['MLB_VERBOSE'] = '1'
+def log(*args,**kwargs):
+    if 'MLB_VERBOSE' in os.environ and os.environ['MLB_VERBOSE'] == '1':
+        print(*args,**kwargs)
 
 # unique timers by name
 _timers = {}
@@ -280,38 +288,27 @@ class ProgressBar:
 freezer_inputs = []
 
 
-def freezer(keyword='break'):
-    if len(freezer_inputs) > 0:
-        if keyword in freezer_inputs:
-            freezer_inputs.remove(keyword)
-            set_trace()
-    while select.select([sys.stdin, ], [], [], 0.0)[0]:
-        try:
-            line = input().strip()
-        except EOFError:
-            return
-        if line.strip() == keyword:
-            set_trace()
-        else:
-            freezer_inputs.append(line.strip())
-
-
 def callback(keyword, fn):
     assert callable(fn)
     if len(freezer_inputs) > 0:
         if keyword in freezer_inputs:
             freezer_inputs.remove(keyword)
-            fn()
+            return fn()
     while select.select([sys.stdin, ], [], [], 0.0)[0]:
         try:
             line = input().strip()
         except EOFError:
             return
         if line.strip() == keyword:
-            fn()
+            return fn()
         else:
             freezer_inputs.append(line.strip())
 
+def freezer(keyword='pause'):
+    return callback(keyword, set_trace)
+    
+def predicate():
+    return callback(keyword, lambda:True)
 
 @contextmanager
 def debug(do_debug=True, ctrlc_quit=True):

@@ -1,3 +1,5 @@
 build/
 dist/
 mlb_core.egg-info/
+__pycache__/
+tags

@@ -1,24 +1,26 @@
 import subprocess as sp
+import os
 
-# Send yourself an email!. Examples:
-# email_me('heres an email!')
-# text_me('heres a text')
-# email_me('im overriding the reciever field now',to=somebodyelse@columbia.edu)
-# email_me('overriding the subject line',subject='new subject line')
-# Note that verbose=False can be used to prevent stderr and stdout from being
-# shown
+"""
+Set up self mailing by adding ~/.mlb.email and ~/.mlb.phone to have contents like 'myemail@foo.bar' and '72837849279@vtext.com'
+"""
 
-def text_me(body,subject='',to='7743120116@vtext.com',verbose=True):
-    return email_me(body,subject=subject,to=to,verbose=verbose)
 
-def email_me(body,subject='[py]',to='mlb2251@columbia.edu',verbose=True):
+
+def text_me(body,verbose=False):
+    return email(body, subject='',to=get_phone(),verbose=verbose)
+def email_me(subject,body,verbose=False):
+    return email(body, subject=subject,to=get_email(),verbose=verbose)
+
+
+def email(body,subject,to,verbose=False):
     msg = '''\
 To: {to}
 Subject: {subject}
 
 {body}\
 '''.format(to=to,subject=subject,body=body).encode('utf-8')
-    print(msg)
+    if verbose: print(msg)
 
     proc = sp.Popen(['sendmail','-t'],stdin=sp.PIPE,stdout=sp.PIPE,stderr=sp.PIPE)
     try:
@@ -31,3 +33,16 @@ Subject: {subject}
         print('[sendmail stderr:] ', err)
     return out, err
 
+def get_email():
+    try:
+        with open(os.environ['HOME']+'/.mlb.email') as f:
+            return f.read().strip()
+    except FileNotFoundError as e:
+        raise Exception(f"{e} | Set up self mailing by adding ~/.mlb.email and ~/.mlb.phone to have contents like 'myemail@foo.bar' and '72837849279@vtext.com'")
+
+def get_phone():
+    try:
+        with open(os.environ['HOME']+'/.mlb.phone') as f:
+            return f.read().strip()
+    except FileNotFoundError as e:
+        raise Exception(f"{e} Set up self mailing by adding ~/.mlb.email and ~/.mlb.phone to have contents like 'myemail@foo.bar' and '72837849279@vtext.com'")

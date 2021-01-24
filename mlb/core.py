@@ -156,7 +156,7 @@ def debug(debug=True, ctrlc=None, crash=None):
         print(format_exception(e, ''))
         print("curr time:",datetime.datetime.now())
         if crash is not None:
-            crash()
+            crash(e)
         post_mortem()
         sys.exit(1)
 

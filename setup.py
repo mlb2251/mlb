@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="mlb-core",
-    version="0.0.2",
+    version="0.0.4",
     author="Matthew Bowers",
     author_email="mattb6503@gmail.com",
     description="a custom suite of utilities",
